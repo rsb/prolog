@@ -50,11 +50,13 @@ func init() {
 	viper.SetEnvKeyReplacer(replacer)
 	viper.SetEnvPrefix(strings.ToUpper(app.ServiceName))
 
-	// rootCmd.AddCommand(apiCmd)
+	rootCmd.AddCommand(apiCmd)
 	// rootCmd.AddCommand(logFmtCmd)
 	// rootCmd.AddCommand(auth0Cmd)
-	// // api sub commands
-	// apiCmd.AddCommand(serveCmd)
+
+	// api sub commands
+	apiCmd.AddCommand(serveCmd)
+
 	//
 	// // auth0 sub commands
 	// auth0Cmd.AddCommand(genKeyCmd)
