@@ -1,6 +1,8 @@
 package produce
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,10 +32,11 @@ func NewHandler(l *business.Log) (*Handler, error) {
 
 func (h *Handler) Produce(c *fiber.Ctx) error {
 	var req Request
-	if err := c.BodyParser(&req); err != nil {
+
+	if err := json.Unmarshal(c.Body(), &req); err != nil {
 		return failure.ToBadRequest(err, "invalid request")
 	}
-
+	fmt.Printf("%+v\n", req.Record)
 	off, err := h.log.Append(req.Record)
 	if err != nil {
 		return failure.ToSystem(err, "h.log.Append failed")

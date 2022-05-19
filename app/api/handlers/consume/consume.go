@@ -17,7 +17,7 @@ type Request struct {
 }
 
 type Response struct {
-	Record business.Record `json:"record"`
+	Record *business.Record `json:"record"`
 }
 
 func NewHandler(l *business.Log) (*Handler, error) {
@@ -36,9 +36,9 @@ func (h *Handler) Consume(c *fiber.Ctx) error {
 
 	rec, err := h.log.Read(req.Offset)
 	if err != nil {
-		return failure.ToSystem(err, "h.log.Append failed")
+		return failure.ToSystem(err, "h.log.Read failed")
 	}
 
-	resp := Response{Record: rec}
+	resp := Response{Record: &rec}
 	return c.Status(http.StatusOK).JSON(&resp)
 }
