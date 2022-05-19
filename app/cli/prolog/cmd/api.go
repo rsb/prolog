@@ -98,7 +98,11 @@ func runAPI(config conf.PrologAPI, log *zap.SugaredLogger) error {
 	}()
 
 	apiMux := construct.NewAPIMux(depend, config.API)
-	apiMux = construct.AddAllRoutes(apiMux, &depend)
+	apiMux, err = construct.AddAllRoutes(apiMux, &depend)
+	if err != nil {
+		return failure.Wrap(err, "construct.AddAllRoutes failed")
+	}
+
 	// Make a channel to listen for errors coming from the listener. Use a
 	// buffered channel so the goroutine can exit if we don't collect this error.
 	serverErrors := make(chan error, 1)

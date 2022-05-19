@@ -99,7 +99,6 @@ func NewAPIMux(d app.Dependencies, c conf.API) *fiber.App {
 			Logger: d.Logger.Desugar(),
 		},
 	))
-	// router.Use(gin.Recovery())
 
 	return app
 }
