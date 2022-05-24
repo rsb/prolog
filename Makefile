@@ -7,12 +7,22 @@ PROLOG_DOCKER_IMAGE := prolog-amd64
 tidy:
 	go mod tidy && go mod vendor
 
-all: lola-api
+
+all: prolog-api
+
+protoc:
+	protoc app/api/handlers/v1/*.proto \
+	--go_out=. \
+	--go_opt=paths=source_relative \
+	--proto_path=.
+
+test:
+	go test -race ./...
 
 run:
 	go run app/cli/prolog/main.go api serve
 
-lola-api:
+prolog-api:
 	docker build \
 		-f infra/docker/Dockerfile.prolog \
 		-t $(PROLOG_DOCKER_IMAGE):$(VERSION) \

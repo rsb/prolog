@@ -15,6 +15,7 @@ require (
 	github.com/tysonmote/gommap v0.0.2
 	go.uber.org/automaxprocs v1.5.1
 	go.uber.org/zap v1.21.0
+	google.golang.org/protobuf v1.28.0
 )
 
 require (
