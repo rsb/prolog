@@ -2,6 +2,7 @@ package log
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -248,6 +249,10 @@ type originReader struct {
 func (o *originReader) Read(p []byte) (int, error) {
 	n, err := o.ReadAt(p, o.off)
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			return n, io.EOF
+		}
+
 		return n, failure.Wrap(err, "o.ReadAt failed")
 	}
 
