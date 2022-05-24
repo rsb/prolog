@@ -138,6 +138,9 @@ github.com/stretchr/testify/require
 # github.com/subosito/gotenv v1.2.0
 ## explicit
 github.com/subosito/gotenv
+# github.com/tysonmote/gommap v0.0.2
+## explicit; go 1.17
+github.com/tysonmote/gommap
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
