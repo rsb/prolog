@@ -15,14 +15,6 @@ var (
 	EntWidth        = OffWidth + PosWidth
 )
 
-type Config struct {
-	Segment struct {
-		MaxStoreBytes uint64
-		MaxIndexBytes uint64
-		InitialOffset uint64
-	}
-}
-
 type Index struct {
 	file *os.File
 	mmap gommap.MMap

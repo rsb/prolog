@@ -1,17 +1,26 @@
 package log
 
 import (
-	"bufio"
 	"encoding/binary"
+	"io"
+	"io/ioutil"
 	"os"
+	"path"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
+
+	data "github.com/rsb/prolog/business/data/v1"
 
 	"github.com/rsb/failure"
 )
 
 const (
 	// LenWidth number of bytes used to Store the record's length
-	LenWidth = 8
+	LenWidth             = 8
+	DefaultMaxStoreBytes = 1024
+	DefaultMaxIndexBytes = 1024
 )
 
 var (
@@ -19,103 +28,229 @@ var (
 	Enc = binary.BigEndian
 )
 
-type Store struct {
-	*os.File
-	mu   sync.Mutex
-	buf  *bufio.Writer
-	size uint64
+type Config struct {
+	Segment struct {
+		MaxStoreBytes uint64
+		MaxIndexBytes uint64
+		InitialOffset uint64
+	}
 }
 
-func NewStore(f *os.File) (*Store, error) {
-	fi, err := os.Stat(f.Name())
+type Log struct {
+	mu            sync.RWMutex
+	Dir           string
+	Config        Config
+	activeSegment *Segment
+	segments      []*Segment
+}
+
+func NewLog(dir string, c Config) (*Log, error) {
+	if c.Segment.MaxStoreBytes == 0 {
+		c.Segment.MaxStoreBytes = DefaultMaxStoreBytes
+	}
+
+	if c.Segment.MaxIndexBytes == 0 {
+		c.Segment.MaxIndexBytes = DefaultMaxIndexBytes
+	}
+
+	l := Log{
+		Dir:    dir,
+		Config: c,
+	}
+
+	if err := l.setup(); err != nil {
+		return nil, failure.Wrap(err, "l.setup failed")
+	}
+
+	return &l, nil
+}
+
+func (l *Log) setup() error {
+	files, err := ioutil.ReadDir(l.Dir)
 	if err != nil {
-		return nil, failure.ToSystem(err, "os.Stat failed")
-	}
-	size := uint64(fi.Size())
-
-	s := &Store{
-		File: f,
-		size: size,
-		buf:  bufio.NewWriter(f),
+		return failure.Wrap(err, "ioutil.ReadDir failed")
 	}
 
-	return s, nil
+	var baseOffsets []uint64
+	for _, file := range files {
+		offStr := strings.TrimSuffix(file.Name(), path.Ext(file.Name()))
+
+		off, err := strconv.ParseUint(offStr, 10, 0)
+		if err != nil {
+			return failure.Wrap(err, "strconv.ParseUint failed")
+		}
+		baseOffsets = append(baseOffsets, off)
+	}
+	sort.Slice(baseOffsets, func(i, j int) bool {
+		return baseOffsets[i] < baseOffsets[j]
+	})
+
+	for i := 0; i < len(baseOffsets); i++ {
+		if err = l.newSegment(baseOffsets[i]); err != nil {
+			return failure.Wrap(err, "l.newSegment failed for (%d)", baseOffsets[i])
+		}
+		// baseOffset contains dup for index and store so we skip the dup.
+		i++
+	}
+
+	if l.segments == nil {
+		if err = l.newSegment(l.Config.Segment.InitialOffset); err != nil {
+			return failure.Wrap(err, "l.newSegment failed for (%d)", l.Config.Segment.InitialOffset)
+		}
+	}
+	return nil
 }
 
-func (s *Store) Append(p []byte) (uint64, uint64, error) {
-	var numBytes uint64
-	var pos uint64
-	var err error
+func (l *Log) Append(record *data.Record) (uint64, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	pos = s.size
-	if err = binary.Write(s.buf, Enc, uint64(len(p))); err != nil {
-		return 0, 0, failure.ToSystem(err, "binary.Write failed")
-	}
-
-	w, err := s.buf.Write(p)
+	off, err := l.activeSegment.Append(record)
 	if err != nil {
-		return 0, 0, failure.ToSystem(err, "s.buf.Write failed")
+		return 0, failure.Wrap(err, "l.activeSegment.Append failed")
 	}
 
-	w += LenWidth
-
-	numBytes = uint64(w)
-	s.size += numBytes
-
-	return numBytes, pos, nil
+	if l.activeSegment.IsMaxed() {
+		if err := l.newSegment(off + 1); err != nil {
+			return 0, failure.Wrap(err, "l.newSegment failed")
+		}
+	}
+	return off, nil
 }
 
-func (s *Store) Read(pos uint64) ([]byte, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (l *Log) Read(off uint64) (*data.Record, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
 
-	if err := s.buf.Flush(); err != nil {
-		return nil, failure.ToSystem(err, "s.buf.Flush failed")
+	var s *Segment
+	for _, seg := range l.segments {
+		if seg.BaseOffset() <= off && off < seg.NextOffset() {
+			s = seg
+			break
+		}
 	}
 
-	size := make([]byte, LenWidth)
-	if _, err := s.File.ReadAt(size, int64(pos)); err != nil {
-		return nil, failure.ToSystem(err, "s.File.ReadAt (pos: %d)", pos)
+	if s == nil || s.NextOffset() <= off {
+		return nil, failure.System("offset out of range %d", off)
 	}
 
-	b := make([]byte, Enc.Uint64(size))
-	if _, err := s.File.ReadAt(b, int64(pos+LenWidth)); err != nil {
-		return nil, failure.ToSystem(err, "s.File.ReadAt failed (pos: %d)", pos)
-	}
-
-	return b, nil
-}
-
-func (s *Store) ReadAt(p []byte, off int64) (int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := s.buf.Flush(); err != nil {
-		return 0, failure.ToSystem(err, "s.buf.Flush failed (off: %d)", off)
-	}
-
-	out, err := s.File.ReadAt(p, off)
+	rec, err := s.Read(off)
 	if err != nil {
-		return 0, failure.ToSystem(err, "s.File.ReadAt failed (off: %d)", off)
+		return nil, failure.Wrap(err, "s.Read failed (offset: %d)", off)
 	}
 
-	return out, nil
+	return rec, nil
 }
 
-func (s *Store) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (l *Log) Close() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	if err := s.buf.Flush(); err != nil {
-		return failure.ToSystem(err, "s.buf.Flush failed")
-	}
-
-	if err := s.File.Close(); err != nil {
-		return failure.ToSystem(err, "s.File.Close failed")
+	for _, seg := range l.segments {
+		if err := seg.Close(); err != nil {
+			return failure.Wrap(err, "seg.Close failed")
+		}
 	}
 
 	return nil
+}
+
+func (l *Log) Remove() error {
+	if err := l.Remove(); err != nil {
+		return failure.Wrap(err, "l.Remove failed")
+	}
+
+	if err := os.RemoveAll(l.Dir); err != nil {
+		return failure.Wrap(err, "os.RemoveAll failed")
+	}
+
+	return nil
+}
+
+func (l *Log) Reset() error {
+	if err := l.Remove(); err != nil {
+		return failure.Wrap(err, "l.Remove failed")
+	}
+
+	if err := l.setup(); err != nil {
+		return failure.Wrap(err, "l.setup failed")
+	}
+
+	return nil
+}
+
+func (l *Log) LowestOffset() (uint64, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	return l.segments[0].BaseOffset(), nil
+}
+
+func (l *Log) HighestOffset() (uint64, error) {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	off := l.segments[len(l.segments)-1].NextOffset()
+	if off == 0 {
+		return 0, nil
+	}
+
+	return off - 1, nil
+}
+
+func (l *Log) Truncate(lowest uint64) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	var segments []*Segment
+
+	for _, s := range l.segments {
+		if s.NextOffset() <= lowest+1 {
+			if err := s.Remove(); err != nil {
+				return failure.Wrap(err, "s.Remove failed")
+			}
+			continue
+		}
+		segments = append(segments, s)
+	}
+	l.segments = segments
+
+	return nil
+}
+
+func (l *Log) Reader() io.Reader {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+
+	readers := make([]io.Reader, len(l.segments))
+	for i, seg := range l.segments {
+		readers[i] = &originReader{seg.store, 0}
+	}
+
+	return io.MultiReader(readers...)
+}
+
+func (l *Log) newSegment(off uint64) error {
+	s, err := NewSegment(l.Dir, off, l.Config)
+	if err != nil {
+		return failure.Wrap(err, "NewSegment failed")
+	}
+	l.segments = append(l.segments, s)
+	l.activeSegment = s
+	return nil
+}
+
+type originReader struct {
+	*Store
+	off int64
+}
+
+func (o *originReader) Read(p []byte) (int, error) {
+	n, err := o.ReadAt(p, o.off)
+	if err != nil {
+		return n, failure.Wrap(err, "o.ReadAt failed")
+	}
+
+	o.off += int64(n)
+	return n, nil
 }
