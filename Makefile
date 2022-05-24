@@ -11,7 +11,7 @@ tidy:
 all: prolog-api
 
 protoc:
-	protoc app/api/handlers/v1/*.proto \
+	protoc business/data/v1/*.proto \
 	--go_out=. \
 	--go_opt=paths=source_relative \
 	--proto_path=.
