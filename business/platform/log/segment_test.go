@@ -9,7 +9,7 @@ import (
 
 	"github.com/rsb/prolog/business/platform/log"
 
-	data "github.com/rsb/prolog/business/data/v1"
+	data "github.com/rsb/prolog/app/api/handlers/v1"
 
 	"github.com/stretchr/testify/require"
 )

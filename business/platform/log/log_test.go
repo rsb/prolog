@@ -5,9 +5,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/rsb/failure"
+
 	"google.golang.org/protobuf/proto"
 
-	data "github.com/rsb/prolog/business/data/v1"
+	data "github.com/rsb/prolog/app/api/handlers/v1"
 	"github.com/rsb/prolog/business/platform/log"
 	"github.com/stretchr/testify/require"
 )
@@ -53,6 +55,7 @@ func testOutOfRangeFailure(t *testing.T, l *log.Log) {
 	read, err := l.Read(1)
 	require.Nil(t, read)
 	require.Error(t, err)
+	require.True(t, failure.IsOutOfRange(err))
 }
 
 func testInitExisting(t *testing.T, l *log.Log) {

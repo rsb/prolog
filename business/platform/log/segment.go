@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	data "github.com/rsb/prolog/business/data/v1"
+	data "github.com/rsb/prolog/app/api/handlers/v1"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/rsb/failure"

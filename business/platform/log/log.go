@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	data "github.com/rsb/prolog/business/data/v1"
+	data "github.com/rsb/prolog/app/api/handlers/v1"
 
 	"github.com/rsb/failure"
 )
@@ -132,7 +132,7 @@ func (l *Log) Read(off uint64) (*data.Record, error) {
 	}
 
 	if s == nil || s.NextOffset() <= off {
-		return nil, failure.System("offset out of range %d", off)
+		return nil, failure.OutOfRange("invalid offset %d", off)
 	}
 
 	rec, err := s.Read(off)
