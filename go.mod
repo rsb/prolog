@@ -1,6 +1,6 @@
 module github.com/rsb/prolog
 
-go 1.18
+go 1.19
 
 require (
 	github.com/gofiber/contrib/fiberzap v0.0.0-20220518072952-1a3033b30569

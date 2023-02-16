@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rsb/prolog/business/platform/log"
+	"github.com/rsb/prolog/business/data/log"
 
 	"github.com/stretchr/testify/require"
 )

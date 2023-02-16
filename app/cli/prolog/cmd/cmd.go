@@ -1,5 +1,5 @@
 // Package cmd is responsible for the cli commands used to manage the
-// prolog platform. We are using the cobra cli to model our command
+// prolog data. We are using the cobra cli to model our command
 // line interactions
 package cmd
 
@@ -27,8 +27,8 @@ var (
 // rootCmd is the base cli command
 var rootCmd = &cobra.Command{
 	Use:   "prolog",
-	Short: "cli tool to help develop, deploy and test the prolog platform",
-	Long: `prolog platform cli tool is used for the following:
+	Short: "cli tool to help develop, deploy and test the prolog data",
+	Long: `prolog data cli tool is used for the following:
 - Aid in development of the distributed services
 - API server management
 - Admin tasks
@@ -69,7 +69,7 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		root := app.RootDir()
-		configName := "lola-platform"
+		configName := "lola-data"
 		viper.AddConfigPath(root)
 		viper.SetConfigType("toml")
 		viper.SetConfigName(configName)

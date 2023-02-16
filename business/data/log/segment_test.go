@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rsb/prolog/business/platform/log"
+	"github.com/rsb/prolog/business/data/log"
 
 	data "github.com/rsb/prolog/app/api/handlers/v1"
 

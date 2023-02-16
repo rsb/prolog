@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	data "github.com/rsb/prolog/app/api/handlers/v1"
-	"github.com/rsb/prolog/business/platform/log"
+	"github.com/rsb/prolog/business/data/log"
 	"github.com/stretchr/testify/require"
 )
 
