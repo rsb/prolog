@@ -1,10 +1,9 @@
 package construct
 
 import (
+	"github.com/rsb/prolog/conf"
 	"os"
 	"time"
-
-	"github.com/rsb/prolog/app/conf"
 
 	"github.com/gofiber/contrib/fiberzap"
 	"github.com/gofiber/fiber/v2"

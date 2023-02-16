@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"expvar"
+	"github.com/rsb/prolog/conf"
 	"os"
 	"os/signal"
 	"runtime"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/rsb/failure"
 	"github.com/rsb/prolog/app"
-	"github.com/rsb/prolog/app/conf"
 	"github.com/rsb/prolog/app/construct"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
