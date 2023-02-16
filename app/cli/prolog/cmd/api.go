@@ -4,6 +4,7 @@ import (
 	"context"
 	"expvar"
 	"github.com/rsb/prolog/conf"
+	construct2 "github.com/rsb/prolog/construct"
 	"os"
 	"os/signal"
 	"runtime"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/rsb/failure"
 	"github.com/rsb/prolog/app"
-	"github.com/rsb/prolog/app/construct"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -41,7 +41,7 @@ var serveCmd = &cobra.Command{
 }
 
 func serveAPI(_ *cobra.Command, _ []string) error {
-	log, err := construct.NewLogger(app.ServiceName)
+	log, err := construct2.NewLogger(app.ServiceName)
 	if err != nil {
 		return failure.Wrap(err, "construct.NewLogger failed (%s)", app.ServiceName)
 	}
@@ -78,12 +78,12 @@ func runAPI(config conf.PrologAPI, log *zap.SugaredLogger) error {
 	shutdown := make(chan os.Signal, 1)
 	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 
-	depend, err := construct.NewAPIDependencies(shutdown, log, config)
+	depend, err := construct2.NewAPIDependencies(shutdown, log, config)
 	if err != nil {
 		return failure.Wrap(err, "construct.NewAPIDependencies failed")
 	}
 
-	debugMux := construct.NewDebugMux(&depend)
+	debugMux := construct2.NewDebugMux(&depend)
 
 	// Start the service listening for debug requests.
 	// Not concerned with shutting this down with load shedding
@@ -97,8 +97,8 @@ func runAPI(config conf.PrologAPI, log *zap.SugaredLogger) error {
 		}
 	}()
 
-	apiMux := construct.NewAPIMux(depend, config.API)
-	apiMux, err = construct.AddAllRoutes(apiMux, &depend)
+	apiMux := construct2.NewAPIMux(depend, config.API)
+	apiMux, err = construct2.AddAllRoutes(apiMux, &depend)
 	if err != nil {
 		return failure.Wrap(err, "construct.AddAllRoutes failed")
 	}
